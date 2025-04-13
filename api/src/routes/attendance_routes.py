@@ -14,7 +14,7 @@ router = APIRouter(
 
 attendance_controller = AttendanceController()
 
-@router.post("/", status_code=201, summary="Create a new attendance")
+@router.post("/add/", status_code=201, summary="Create a new attendance")
 async def create_attendance(request: Request, attendance: CreateAttendance):
     """
     Registers a new attendance with AI diagnosis.
@@ -26,7 +26,7 @@ async def create_attendance(request: Request, attendance: CreateAttendance):
     """
     return await attendance_controller.add_attendance(request, attendance)
 
-@router.get("/", summary="List attendances")
+@router.get("/list/", summary="List attendances")
 async def get_attendances(
     request: Request, 
     health_unit_id: Optional[str] = None,
@@ -100,7 +100,7 @@ async def delete_attendance(request: Request, attendance_id: str):
     """
     return await attendance_controller.delete_attendance(request, attendance_id)
 
-@router.get("/statistics/summary", summary="Get attendance statistics")
+@router.get("/statistics/summary/", summary="Get attendance statistics")
 async def get_statistics(
     request: Request,
     start_date: str = Query(..., description="Start date in YYYY-MM-DD format"),

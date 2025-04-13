@@ -347,7 +347,7 @@ class UserRepository:
         try:
             admin_uuid = uuid.UUID(admin_id)
             async with self.pool.acquire() as conn:
-                query = "SELECT * FROM users WHERE admin_id = $1 AND profile = 'professional'"
+                query = "SELECT * FROM users WHERE admin_id = $1"
                 users = await conn.fetch(query, admin_uuid)
                 logger.info(f"Found {len(users)} professionals for admin {admin_id}")
                 return [

@@ -14,7 +14,7 @@ router = APIRouter(
 
 user_controller = UserController()
 
-@router.post("/", status_code=201, summary="Create new user")
+@router.post("/add/", status_code=201, summary="Create new user")
 async def create_user(request: Request, user: CreateUser):
     """
     Creates a new user in the system.
@@ -38,7 +38,7 @@ async def login(request: Request, user: LoginUser):
     """
     return await user_controller.login_user(request, user)
 
-@router.get("/", summary="List users")
+@router.get("/list/", summary="List users")
 async def get_users(request: Request, admin_id: Optional[str] = None):
     """
     Lists users in the system.
@@ -53,7 +53,7 @@ async def get_users(request: Request, admin_id: Optional[str] = None):
     """
     return await user_controller.get_users(request, admin_id)
 
-@router.get("/administrators/list", summary="List administrators")
+@router.get("/administrators/list/", summary="List administrators")
 async def get_administrators(request: Request):
     """
     Lists all users with administrator profile.
@@ -64,7 +64,7 @@ async def get_administrators(request: Request):
     """
     return await user_controller.get_administrators(request)
 
-@router.get("/professionals/list", summary="List professionals")
+@router.get("/professionals/list/", summary="List professionals")
 async def get_professionals(request: Request, admin_id: Optional[str] = None):
     """
     Lists healthcare professionals.
@@ -79,7 +79,7 @@ async def get_professionals(request: Request, admin_id: Optional[str] = None):
     """
     return await user_controller.get_professionals(request, admin_id)
 
-@router.get("/subscriptions", summary="List subscriptions")
+@router.get("/subscriptions/", summary="List subscriptions")
 async def get_subscriptions(request: Request):
     """
     Lists all existing subscriptions in the system.

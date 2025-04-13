@@ -62,7 +62,6 @@ class UserController:
         Retrieves all users.
         If admin_id is provided, returns only users associated with that admin.
         """
-        print(f'REQUEST IN USERS==============================: {list(request)}')
 
         await self.auth_middleware.verify_request(request)
         
@@ -214,7 +213,6 @@ class UserController:
         
         if not admin_id and current_user_profile == "administrator":
             admin_id = current_user_id
-        
         elif current_user_profile == "professional":
             admin_id = request.state.user.get("admin_id")
             if not admin_id:
@@ -225,7 +223,8 @@ class UserController:
                         "status_code": 403
                     }
                 }
-        
+        print(f"Admin ID=====================: {admin_id}")
+
         return await self.user_use_cases.get_professionals(admin_id, current_user_profile,audit_data)
 
 

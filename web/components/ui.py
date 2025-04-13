@@ -1,6 +1,9 @@
 # web/components/ui.py
 from fasthtml.common import *
 
+
+_OriginalHtmlTable = Table
+
 def Card(*content, title=None, footer=None, cls=""):
     """Componente Card"""
     card_content = []
@@ -19,17 +22,23 @@ def Alert(message, type="info"):
     """Componente de alerta"""
     return Div(message, cls=f"alert alert-{type}")
 
-def Table(headers, rows, id=None, cls=""):
-    """Componente de tabela"""
+
+def Table(headers, rows, id=None, cls=""): # Sua função wrapper customizada
+    """Componente para renderizar uma tabela HTML estilizada."""
+
+    # Cria a tabela HTML *usando a referência original*
+    actual_html_table = _OriginalHtmlTable(
+        Thead(
+            Tr(*[Th(header) for header in headers])
+        ),
+        Tbody(*rows),
+        id=id # Passa o id para a tag <table> interna, se fornecido
+    )
+
+    # Retorna a tabela HTML dentro das suas Divs de estilização
     return Div(
         Div(
-            Table(
-                Thead(
-                    Tr(*[Th(header) for header in headers])
-                ),
-                Tbody(*rows),
-                id=id
-            ),
+            actual_html_table, # Usa a tabela HTML criada
             cls="table-responsive"
         ),
         cls=f"table-container {cls}"

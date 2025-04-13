@@ -14,7 +14,7 @@ router = APIRouter(
 
 health_unit_controller = HealthUnitController()
 
-@router.post("/", status_code=201, summary="Create a new health unit")
+@router.post("/add/", status_code=201, summary="Create a new health unit")
 async def create_health_unit(request: Request, health_unit: CreateHealthUnit):
     """
     Creates a new health unit in the system.
@@ -26,7 +26,7 @@ async def create_health_unit(request: Request, health_unit: CreateHealthUnit):
     """
     return await health_unit_controller.add_health_unit(request, health_unit)
 
-@router.get("/", summary="List health units")
+@router.get("/list/", summary="List health units")
 async def get_health_units(request: Request):
     """
     Lists health units in the system.
