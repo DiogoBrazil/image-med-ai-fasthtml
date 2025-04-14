@@ -12,6 +12,7 @@ async def add_health_unit_page(request):
     session = request.scope.get("session", {})
     token = session.get('token')
     current_user_id = session.get('user_id')
+    # *** ADICIONADO: Obter user_profile da sessão ***
     current_user_profile = session.get('user_profile')
 
     # Verifica se o usuário é um administrador (comum ou geral)
@@ -189,5 +190,5 @@ async def add_health_unit_page(request):
         """)
     )
 
-    # Renderiza o layout principal com o conteúdo construído
-    return MainLayout(page_title, *content, active_page="health-units")
+    # *** ALTERADO: Passar user_profile para MainLayout ***
+    return MainLayout(page_title, *content, active_page="health-units", user_profile=current_user_profile)

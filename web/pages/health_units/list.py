@@ -8,7 +8,7 @@ from services.auth_service import AuthService
 # Para usar SVG embutido precisamos do NotStr
 from fasthtml.components import NotStr
 
-# --- Definições dos Ícones SVG ---
+# --- Definições dos Ícones SVG (mantidos como antes) ---
 # Ícone de Lápis (Editar) - Exemplo do Bootstrap Icons
 edit_icon_svg = """
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
@@ -30,10 +30,12 @@ async def health_units_list_page(request):
     session = request.scope.get("session", {})
     token = session.get('token')
     user_id = session.get('user_id')
+    # *** ADICIONADO: Obter user_profile da sessão ***
     user_profile = session.get('user_profile')
 
     # Verifica se o usuário pode gerenciar unidades de saúde
     can_manage = AuthService.is_admin(user_profile)
+    is_general_admin = (user_profile == "general_administrator")
 
     # Obtém a lista de unidades de saúde
     result = await HealthUnitsService.get_health_units(token)
@@ -68,6 +70,7 @@ async def health_units_list_page(request):
             # Prepara as linhas da tabela
             rows = []
             for unit in health_units:
+                unit_id = unit.get("id") # ID da unidade atual
                 # Formata a data (opcional, mas recomendado)
                 created_at_str = unit.get("created_at", "")
                 try:
@@ -89,38 +92,35 @@ async def health_units_list_page(request):
                 ]
 
                 # Célula de Ações com Ícones
-                if can_manage:
-                    can_edit_delete = user_profile == "general_administrator" or unit.get("admin_id") == user_id
-                    if can_edit_delete:
-                        actions = Td(
-                            A( # Link de Edição com Ícone
-                               NotStr(edit_icon_svg), # Usa NotStr para renderizar o SVG
-                               href=f"/health-units/edit/{unit['id']}",
-                               cls="btn-icon btn-edit", # Classes para estilização do ícone
-                               title="Edit Health Unit" # Tooltip para acessibilidade
-                            ),
-                            A( # Link de Deleção com Ícone e HTMX
-                               NotStr(delete_icon_svg), # Usa NotStr para renderizar o SVG
-                               hx_post=f"/health-units/delete/{unit['id']}", # Rota do frontend para POST
-                               hx_target=f"#unit-row-{unit['id']}",
-                               hx_swap="outerHTML",
-                               hx_confirm="Tem certeza que deseja excluir esta unidade de saúde?",
-                               cls="btn-icon btn-delete", # Classes para estilização do ícone
-                               title="Delete Health Unit" # Tooltip para acessibilidade
-                            ),
-                            cls="actions-cell" # Classe para alinhar os ícones na célula
-                        )
-                        cells.append(actions)
-                    else:
-                        cells.append(Td(" ")) # Célula de ações vazia se não puder gerenciar
+                # Verifica se o usuário atual pode editar/deletar esta unidade específica
+                can_edit_delete_this = is_general_admin or unit.get("admin_id") == user_id
+
+                if can_manage and can_edit_delete_this:
+                    actions = Td(
+                        A( # Link de Edição com Ícone
+                           NotStr(edit_icon_svg), # Usa NotStr para renderizar o SVG
+                           href=f"/health-units/edit/{unit_id}",
+                           cls="btn-icon btn-edit", # Classes para estilização do ícone
+                           title="Edit Health Unit" # Tooltip para acessibilidade
+                        ),
+                        A( # Link de Deleção com Ícone e HTMX
+                           NotStr(delete_icon_svg), # Usa NotStr para renderizar o SVG
+                           hx_post=f"/health-units/delete/{unit_id}", # Rota do frontend para POST
+                           hx_target=f"#unit-row-{unit_id}",
+                           hx_swap="outerHTML",
+                           hx_confirm="Are you sure you want to delete this health unit?",
+                           cls="btn-icon btn-delete", # Classes para estilização do ícone
+                           title="Delete Health Unit" # Tooltip para acessibilidade
+                        ),
+                        cls="actions-cell" # Classe para alinhar os ícones na célula
+                    )
+                    cells.append(actions)
                 else:
-                     # Adiciona uma célula vazia se o usuário não puder gerenciar
-                     # para manter o número de colunas consistente
+                     # Adiciona uma célula vazia se o usuário não puder gerenciar esta unidade
                      cells.append(Td(" "))
 
-
                 # Adiciona um ID à linha da tabela (tr) para ser alvo do hx_target
-                rows.append(Tr(*cells, id=f"unit-row-{unit['id']}"))
+                rows.append(Tr(*cells, id=f"unit-row-{unit_id}"))
 
             # Define as colunas da tabela
             headers = ["Name", "CNPJ", "Status", "Created At", "Actions"] # Adiciona cabeçalho "Actions"
@@ -147,7 +147,7 @@ async def health_units_list_page(request):
             )
         )
 
-    # Adiciona CSS específico da página, incluindo estilos para os ícones
+    # Adiciona CSS específico da página (mantido como antes)
     content.append(
         Style("""
             .page-header {
@@ -241,5 +241,5 @@ async def health_units_list_page(request):
         """)
     )
 
-    # Renderiza o layout principal com o conteúdo da lista de unidades
-    return MainLayout(page_title, *content, active_page="health-units")
+    # *** ALTERADO: Passar user_profile para MainLayout ***
+    return MainLayout(page_title, *content, active_page="health-units", user_profile=user_profile)

@@ -9,7 +9,7 @@ from services.auth_service import AuthService
 # Importa NotStr para renderizar SVG diretamente
 from fasthtml.components import NotStr
 
-# --- Definições dos Ícones SVG ---
+# --- Definições dos Ícones SVG (mantidos como antes) ---
 # Ícone de Lápis (Editar)
 edit_icon_svg = """
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pencil-square" viewBox="0 0 16 16">
@@ -30,6 +30,7 @@ async def users_list_page(request):
     """Renderiza a página de listagem de usuários com lógica baseada no perfil."""
     session = request.scope.get("session", {})
     token = session.get('token')
+    # *** ADICIONADO: Obter user_profile da sessão ***
     user_profile = session.get('user_profile')
     current_user_id = session.get('user_id')
 
@@ -163,7 +164,7 @@ async def users_list_page(request):
             content.append( Card( P(no_data_message, cls="no-data"), title=card_title) )
     # else: O erro da API já foi tratado pelo Alert no início
 
-    # Adiciona CSS
+    # Adiciona CSS (mantido como antes)
     content.append(
         Style("""
             /* --- CSS Completo (mantido da resposta anterior) --- */
@@ -185,5 +186,5 @@ async def users_list_page(request):
         """)
     )
 
-    # Renderiza o layout principal
-    return MainLayout(page_title, *content, active_page="users")
+    # *** ALTERADO: Passar user_profile para MainLayout ***
+    return MainLayout(page_title, *content, active_page="users", user_profile=user_profile)

@@ -12,6 +12,7 @@ async def edit_health_unit_page(request):
     session = request.scope.get("session", {})
     token = session.get('token')
     current_user_id = session.get('user_id')
+    # *** ADICIONADO: Obter user_profile da sessão ***
     current_user_profile = session.get('user_profile')
 
     is_general_admin = (current_user_profile == "general_administrator")
@@ -133,7 +134,7 @@ async def edit_health_unit_page(request):
         )
     )
 
-    # Adiciona o CSS (reutilizando o CSS da página de adicionar)
+    # Adiciona o CSS (mantido como antes)
     content.append(
         Style("""
             .page-header {
@@ -181,5 +182,5 @@ async def edit_health_unit_page(request):
         """)
     )
 
-    # Renderiza o layout principal
-    return MainLayout(page_title, *content, active_page="health-units")
+    # *** ALTERADO: Passar current_user_profile para MainLayout ***
+    return MainLayout(page_title, *content, active_page="health-units", user_profile=current_user_profile)

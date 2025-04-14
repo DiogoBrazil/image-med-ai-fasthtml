@@ -1,45 +1,49 @@
 # web/components/layout.py
 from fasthtml.common import *
 
-# ATUALIZADO: Recebe user_profile para filtrar a navegação
+# ATUALIZADO: Define itens específicos para admins e mantém CSS aprimorado
 def MainLayout(title, *content, active_page=None, user_profile=None):
-    """Layout principal da aplicação com navegação condicional"""
+    """Layout principal da aplicação com navegação condicional por perfil e estilo aprimorado"""
 
-    # Define todos os itens de navegação possíveis e os perfis que podem vê-los
-    all_nav_items = [
-        {"url": "/", "label": "Dashboard", "id": "dashboard", "profiles": ["professional", "administrator", "general_administrator"]},
+    # Define os itens de navegação VISÍVEIS APENAS PARA ADMINS
+    admin_nav_items = [
+        {"url": "/", "label": "Dashboard", "id": "dashboard", "profiles": ["administrator", "general_administrator"]},
         {"url": "/users", "label": "Users", "id": "users", "profiles": ["administrator", "general_administrator"]},
         {"url": "/health-units", "label": "Health Units", "id": "health-units", "profiles": ["administrator", "general_administrator"]},
         {"url": "/attendances", "label": "Attendances", "id": "attendances", "profiles": ["administrator", "general_administrator"]},
-        # Adicione aqui outros itens de menu se necessário.
-        # Exemplo: Link direto para iniciar uma predição (útil para profissional)
-        # {"url": "/predict/select", "label": "New Prediction", "id": "predict", "profiles": ["professional"]},
     ]
 
     # Filtra os itens de navegação que devem ser exibidos para o perfil atual
-    # Se user_profile for None (ex: antes do login), a lista ficará vazia (exceto se permitir itens públicos)
-    nav_items_for_user = [
-        item for item in all_nav_items if user_profile in item["profiles"]
+    # Só mostrará itens se o perfil for admin
+    nav_items_to_display = [
+        item for item in admin_nav_items if user_profile in item.get("profiles", [])
     ]
 
-    # Constrói a lista de navegação (Ul)
+    # Constrói a lista de navegação (Ul) - Ficará vazia para não-admins
     nav_ul = Ul(*[
         Li(
             A(item["label"], href=item["url"],
               # Marca como ativo se o ID da página corresponder
               cls="active" if active_page == item["id"] else "")
-        ) for item in nav_items_for_user # Usa a lista filtrada
-    ])
+        ) for item in nav_items_to_display # Usa a lista filtrada
+    ], cls="nav-links")
 
     # Retorna a estrutura completa do layout HTML
     return [
         Title(f"{title} - Medical Diagnosis System"), # Título da página no navegador
+        Meta(name="viewport", content="width=device-width, initial-scale=1.0"),
         Main(
             Header( # Cabeçalho principal
-                Div( H1(A("Medical Diagnosis System", href="/"), cls="logo"), cls="brand" ),
+                Div( H1(A("⚕️ Med Diag AI", href="/"), cls="logo"), cls="brand" ), # Logo sempre visível
                 Nav( # Navegação
-                    nav_ul, # A lista de links filtrada
-                    A("Logout", href="/logout", cls="logout-btn"), # Botão de logout sempre visível para logados
+                    nav_ul, # Renderiza a lista de links (vazia para professional)
+                    Div( # Container para botão de logout
+                        # Botão Logout visível para QUALQUER perfil logado
+                        A("Logout", href="/logout", cls="logout-btn") if user_profile else "",
+                        cls="logout-container"
+                    ),
+                    # Botão de menu mobile (só mostra se houver links para exibir)
+                    Button("☰", cls="menu-toggle", onclick="toggleMobileMenu()") if nav_items_to_display else "",
                     cls="main-nav"
                 ),
                 cls="main-header"
@@ -51,216 +55,201 @@ def MainLayout(title, *content, active_page=None, user_profile=None):
             ),
             cls="container" # Container principal
         ),
-        # Bloco CSS completo para o layout
+        # Bloco CSS completo para o layout (Mantido da resposta anterior)
         Style("""
-            /* --- Variáveis de Cor (Exemplo) --- */
+            /* --- Variáveis Globais --- */
             :root {
-                --primary-color: #2563eb;
-                --secondary-color: #1e3a8a;
-                --bg-color: #f3f4f6;
-                --text-color: #1f2937;
-                --border-color: #e5e7eb;
-                --success-color: #10b981;
-                --error-color: #ef4444;
-                --warning-color: #f59e0b;
-                --nav-hover-color: #dbeafe; /* Azul bem claro para hover */
+                --primary-color: #3B82F6; /* Azul primário */
+                --primary-darker: #2563EB;
+                --secondary-color: #1F2937; /* Cinza escuro texto */
+                --accent-color: #10B981; /* Verde para sucesso */
+                --bg-color: #F9FAFB; /* Fundo cinza muito claro */
+                --card-bg: #FFFFFF;
+                --text-color: #374151;
+                --border-color: #E5E7EB;
+                --nav-hover-bg: #EBF4FF;
+                --nav-active-bg: var(--primary-color);
+                --nav-active-text: white;
+                --header-height: 65px; /* Altura do cabeçalho */
             }
-            /* --- Estilos Globais --- */
+            /* --- Reset Básico & Globais --- */
+            *, *::before, *::after { box-sizing: border-box; }
             body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
                 background-color: var(--bg-color);
                 color: var(--text-color);
                 margin: 0;
                 padding: 0;
-                line-height: 1.5;
+                line-height: 1.6;
+                font-size: 16px;
             }
-            a {
-                color: var(--primary-color);
-                text-decoration: none;
-                transition: color 0.2s;
-            }
-            a:hover {
-                color: var(--secondary-color);
-            }
-            img {
-                 max-width: 100%;
-                 height: auto;
-            }
+            a { color: var(--primary-color); text-decoration: none; transition: color 0.2s; }
+            a:hover { color: var(--primary-darker); }
+            img { max-width: 100%; height: auto; display: block; }
+            h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 0.8rem; color: var(--secondary-color); font-weight: 600; }
+            h1 { font-size: 1.8rem; }
+            h2 { font-size: 1.5rem; }
+            h3 { font-size: 1.25rem; }
+
             /* --- Estrutura Principal --- */
-            .container {
-                display: flex;
-                flex-direction: column;
-                min-height: 100vh;
-            }
+            .container { display: flex; flex-direction: column; min-height: 100vh; }
             .content-container {
-                flex: 1; /* Faz o conteúdo ocupar o espaço restante */
-                padding: 1.5rem 2rem; /* Padding responsivo */
-                max-width: 1300px; /* Largura máxima para conteúdo */
-                margin: 0 auto; /* Centraliza */
+                flex: 1;
+                padding: 2rem; /* Padding padrão */
+                max-width: 1300px;
+                margin: var(--header-height) auto 0 auto; /* Espaço para header fixo e centralização */
                 width: 100%;
-                box-sizing: border-box; /* Inclui padding na largura */
             }
-             @media (max-width: 768px) {
-                 .content-container {
-                     padding: 1rem;
-                 }
-             }
 
             /* --- Cabeçalho (Header) --- */
             .main-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 0.8rem 2rem; /* Padding vertical menor */
-                background-color: white;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Sombra mais sutil */
-                position: sticky; /* Fixa no topo */
+                padding: 0 2rem; /* Padding horizontal */
+                background-color: var(--card-bg);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+                position: fixed; /* Fixa no topo */
                 top: 0;
-                z-index: 100; /* Garante que fique sobre o conteúdo */
+                left: 0;
+                width: 100%;
+                height: var(--header-height); /* Altura fixa */
+                z-index: 1000; /* Garante que fique sobre o conteúdo */
             }
             .brand .logo {
                 color: var(--primary-color);
                 text-decoration: none;
-                font-size: 1.4rem; /* Tamanho do logo */
-                font-weight: 600; /* Peso da fonte */
-            }
-
-            /* --- Navegação Principal --- */
-            .main-nav {
+                font-size: 1.6rem; /* Tamanho do logo */
+                font-weight: 700; /* Mais peso */
                 display: flex;
                 align-items: center;
             }
-            .main-nav ul {
-                display: flex;
-                list-style: none;
-                margin: 0 1.5rem 0 0; /* Espaço antes do botão Logout */
-                padding: 0;
-            }
-            .main-nav ul li {
-                margin-right: 0.5rem; /* Espaço entre itens */
-            }
-            .main-nav ul li a {
-                color: var(--text-color);
+
+            /* --- Navegação Principal --- */
+            .main-nav { display: flex; align-items: center; gap: 1.5rem; /* Espaço entre nav e logout */ }
+            .nav-links { display: flex; list-style: none; margin: 0; padding: 0; gap: 0.5rem; /* Espaço entre links */ }
+            .nav-links li a {
+                color: var(--secondary-color);
                 text-decoration: none;
-                padding: 0.6rem 0.8rem; /* Padding nos links */
+                padding: 0.6rem 1rem; /* Padding nos links */
                 font-weight: 500;
-                border-radius: 0.375rem; /* Bordas arredondadas */
+                border-radius: 6px; /* Bordas arredondadas */
                 transition: background-color 0.2s, color 0.2s;
+                white-space: nowrap; /* Impede quebra */
+                font-size: 0.95rem;
             }
-            .main-nav ul li a:hover {
-                background-color: var(--nav-hover-color);
-                color: var(--primary-color);
-            }
-            .main-nav ul li a.active {
-                background-color: var(--primary-color);
-                color: white;
-                font-weight: 600;
-            }
+            .nav-links li a:hover { background-color: var(--nav-hover-bg); color: var(--primary-darker); }
+            .nav-links li a.active { background-color: var(--nav-active-bg); color: var(--nav-active-text); font-weight: 600; }
+
             /* Botão de Logout */
+            .logout-container { /* Necessário para alinhar */ }
             .logout-btn {
-                background-color: #f8fafc; /* Fundo claro */
+                background-color: transparent;
                 color: var(--primary-color);
                 border: 1px solid var(--primary-color);
                 padding: 0.5rem 1rem;
-                border-radius: 0.375rem;
+                border-radius: 6px;
                 text-decoration: none;
                 font-weight: 500;
                 transition: all 0.2s;
-                white-space: nowrap; /* Impede quebra de linha */
+                white-space: nowrap;
+                font-size: 0.95rem;
             }
-            .logout-btn:hover {
-                background-color: var(--primary-color);
-                color: white;
+            .logout-btn:hover { background-color: var(--primary-color); color: white; }
+
+            /* Botão de Menu Mobile (inicialmente escondido) */
+            .menu-toggle {
+                 display: none; /* Escondido por padrão */
+                 background: none; border: none; font-size: 1.8rem; cursor: pointer; color: var(--secondary-color);
             }
 
             /* --- Rodapé (Footer) --- */
             .main-footer {
-                background-color: #e5e7eb; /* Cinza um pouco mais escuro */
-                padding: 1rem 2rem;
+                background-color: #E5E7EB;
+                padding: 1.2rem 2rem;
                 text-align: center;
-                color: #4b5563; /* Cor do texto do rodapé */
-                font-size: 0.85rem;
-                margin-top: 2rem; /* Espaço acima do rodapé */
+                color: #4B5563;
+                font-size: 0.875rem;
+                margin-top: auto; /* Empurra para baixo */
             }
 
             /* --- Estilos Comuns para Componentes (Reutilizáveis) --- */
-            /* Cards */
-            .card {
-                background-color: white;
-                border-radius: 0.5rem;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.05);
-                margin-bottom: 1.5rem;
-                overflow: hidden; /* Para conter elementos internos */
-            }
-             .card .card-header, .card [role=heading] { /* Suporte a header e heading role */
-                 padding: 1rem 1.5rem;
-                 background-color: #f9fafb; /* Fundo levemente cinza */
-                 border-bottom: 1px solid var(--border-color);
-                 margin: 0; /* Remove margens padrão de Hx */
-                 font-size: 1.1rem;
-                 font-weight: 600;
-             }
-             .card .card-body {
-                 padding: 1.5rem;
-             }
-             .card .card-footer {
-                 padding: 1rem 1.5rem;
-                 background-color: #f9fafb;
-                 border-top: 1px solid var(--border-color);
-             }
-
-             /* Botões */
-            .btn {
-                display: inline-block;
-                background-color: var(--primary-color);
-                color: white;
-                padding: 0.6rem 1.2rem; /* Padding padrão */
-                border-radius: 0.375rem;
-                text-decoration: none;
-                font-weight: 500;
-                border: none;
-                cursor: pointer;
-                transition: background-color 0.2s, transform 0.1s;
-                text-align: center;
-                line-height: 1.2; /* Ajuste para alinhamento vertical */
-            }
-            .btn:hover {
-                background-color: var(--secondary-color);
-                transform: translateY(-1px); /* Leve efeito ao passar o mouse */
-            }
+            .card { background-color: var(--card-bg); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 1.5rem; overflow: hidden; }
+            .card [role=heading], .card header { padding: 1rem 1.5rem; background-color: #F9FAFB; border-bottom: 1px solid var(--border-color); margin: 0; font-size: 1.15rem; font-weight: 600; }
+            .card > div:not(header):not(footer) { padding: 1.5rem; } /* Padding padrão para conteúdo */
+            .card footer { padding: 1rem 1.5rem; background-color: #F9FAFB; border-top: 1px solid var(--border-color); }
+            .btn { display: inline-block; background-color: var(--primary-color); color: white; padding: 0.7rem 1.4rem; border-radius: 6px; text-decoration: none; font-weight: 500; border: none; cursor: pointer; transition: background-color 0.2s, transform 0.1s; text-align: center; line-height: 1.2; font-size: 1rem; }
+            .btn:hover { background-color: var(--primary-darker); transform: translateY(-1px); }
             .btn-secondary { background-color: #6b7280; }
             .btn-secondary:hover { background-color: #4b5563; }
-            .btn-danger { background-color: var(--error-color); }
-            .btn-danger:hover { background-color: #dc2626; }
-            .btn-primary { background-color: var(--primary-color); }
-            .btn-primary:hover { background-color: var(--secondary-color); }
+            .btn-danger { background-color: #EF4444; }
+            .btn-danger:hover { background-color: #DC2626; }
+            .alert { padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem; border: 1px solid transparent; font-size: 0.95rem; }
+            .alert-success { background-color: #D1FAE5; color: #065F46; border-color: #A7F3D0; }
+            .alert-error { background-color: #FEE2E2; color: #B91C1C; border-color: #FECACA; }
+            .alert-warning { background-color: #FFFBEB; color: #92400E; border-color: #FEF3C7; }
+            .alert-info { background-color: #DBEAFE; color: #1E40AF; border-color: #BFDBFE; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; background-color: var(--card-bg); }
+            table th, table td { padding: 0.8rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.95rem; }
+            table th { background-color: #F9FAFB; font-weight: 600; color: #4B5563;}
+            .table-container { overflow-x: auto; }
 
-             /* Formulários */
-            .form-group { margin-bottom: 1.25rem; }
-            .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151; }
-            .form-group input, .form-group select, .form-group textarea {
-                 width: 100%; padding: 0.6rem 0.75rem; border: 1px solid #d1d5db;
-                 border-radius: 0.375rem; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
-                 box-sizing: border-box; font-size: 1rem; line-height: 1.5;
+            /* --- Responsividade --- */
+            @media (max-width: 992px) { /* Telas médias */
+                 .main-header { padding: 0 1rem; }
+                 .content-container { padding: 1.5rem; margin-top: var(--header-height); }
+                 .nav-links li a { padding: 0.5rem 0.8rem; font-size: 0.9rem; }
+            }
+
+            @media (max-width: 768px) { /* Tablets e Celulares Grandes */
+                 .main-header { /* Preparação para menu mobile */ }
+                 .nav-links {
+                     display: none; /* Esconde links por padrão */
+                     flex-direction: column;
+                     position: absolute;
+                     top: var(--header-height); /* Abaixo do header */
+                     left: 0;
+                     width: 100%;
+                     background-color: var(--card-bg);
+                     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                     padding: 1rem 0; /* Padding vertical */
+                     gap: 0; /* Remove gap no modo coluna */
+                 }
+                 .nav-links.active { display: flex; } /* Mostra quando ativo (via JS) */
+                 .nav-links li { width: 100%; }
+                 .nav-links li a {
+                     display: block; /* Ocupa largura total */
+                     text-align: center;
+                     padding: 0.8rem 1rem;
+                     border-radius: 0; /* Remove borda */
+                     border-bottom: 1px solid var(--border-color);
+                 }
+                 .nav-links li:last-child a { border-bottom: none; }
+                 .logout-container {
+                      /* Move o logout para dentro do menu mobile se ele estiver ativo */
+                      /* Ou mantenha fora se preferir */
+                 }
+                 .menu-toggle { display: block; } /* Mostra o botão hambúrguer */
+            }
+
+             @media (max-width: 480px) { /* Celulares Pequenos */
+                 .main-header { padding: 0 0.8rem; }
+                 .content-container { padding: 1rem; margin-top: calc(var(--header-height) - 5px); } /* Ajusta se header encolher */
+                 .brand .logo { font-size: 1.4rem; }
+                 .btn { padding: 0.6rem 1rem; font-size: 0.9rem; }
+                 h1 { font-size: 1.6rem; }
+                 h2 { font-size: 1.3rem; }
+                 .logout-container { padding-right: 0.5rem; }
+                 .logout-btn { padding: 0.4rem 0.8rem; font-size: 0.85rem;}
              }
-             .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-                  border-color: var(--primary-color, #2563eb); outline: none;
-                  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
-             }
-            .form-group .btn-secondary { margin-left: 1rem; }
-
-            /* Alertas */
-            .alert { padding: 1rem; border-radius: 0.375rem; margin-bottom: 1.5rem; border: 1px solid transparent; }
-            .alert-success { background-color: #d1fae5; color: #065f46; border-color: #a7f3d0; }
-            .alert-error { background-color: #fee2e2; color: #b91c1c; border-color: #fecaca; }
-            .alert-warning { background-color: #fffbeb; color: #92400e; border-color: #fef3c7; }
-            .alert-info { background-color: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
-
-             /* Tabela - Estilos básicos */
-            table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
-            table th, table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border-color); }
-            table th { background-color: #f9fafb; font-weight: 600; color: #4b5563;}
-            .table-container { overflow-x: auto; } /* Permite scroll horizontal em tabelas largas */
-
+        """),
+        # Script JS Simples para Toggle
+        Script("""
+            function toggleMobileMenu() {
+                const navLinks = document.querySelector('.nav-links');
+                if (navLinks) {
+                    navLinks.classList.toggle('active');
+                }
+            }
         """)
     ]

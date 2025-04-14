@@ -10,7 +10,7 @@ from services.attendance_service import AttendanceService
 from services.health_units_service import HealthUnitsService
 from services.auth_service import AuthService
 
-# --- Definições dos Ícones SVG ---
+# --- Definições dos Ícones SVG (mantidos como antes) ---
 # Ícone de Olho (View) - Exemplo Bootstrap Icons
 view_icon_svg = """
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-fill" viewBox="0 0 16 16">
@@ -38,6 +38,7 @@ async def attendances_list_page(request):
     session = request.scope.get("session", {})
     token = session.get('token')
     user_id = session.get('user_id')
+    # *** ADICIONADO: Obter user_profile da sessão ***
     user_profile = session.get('user_profile')
 
     # Obtém parâmetros da query string
@@ -175,10 +176,20 @@ async def attendances_list_page(request):
 
                 model_result = attendance.get("model_result", "N/A")
                 correct_diagnosis = attendance.get("correct_diagnosis")
-                diagnosis_display = model_result
+                # Tenta carregar model_result como JSON para pegar a classe principal (se for TB ou Osteo)
+                try:
+                     result_dict = json.loads(model_result) if isinstance(model_result, str) and model_result.startswith('{') else {}
+                     display_result = result_dict.get("class_pred", model_result) # Mostra 'class_pred' ou o texto original
+                except:
+                     display_result = model_result # Mantém original se não for JSON válido
+
+                diagnosis_display = Span(display_result) # Começa com o resultado
                 if correct_diagnosis is not None:
-                    diagnosis_class = "status-active" if correct_diagnosis else "status-inactive" # Reusa classes de status
-                    diagnosis_display = Span(f"{model_result} (Correct: {correct_diagnosis})", cls=diagnosis_class)
+                     # Ajusta o display se tivermos informação de correção
+                     diag_text = "Correct" if correct_diagnosis else "Incorrect"
+                     diag_class = "diagnosis-correct" if correct_diagnosis else "diagnosis-incorrect"
+                     diagnosis_display = Span(f"{display_result} ", Span(f"({diag_text})", cls=diag_class))
+
 
                 health_unit_id = attendance.get("health_unit_id", "")
                 # Cria um dicionário para lookup rápido de nomes de unidade
@@ -200,7 +211,7 @@ async def attendances_list_page(request):
                 actions = Td(
                     A(NotStr(view_icon_svg), href=f"/attendances/view/{attendance_id}", cls="btn-icon btn-view", title="View Details"),
                     A(NotStr(edit_icon_svg), href=f"/attendances/edit/{attendance_id}", cls="btn-icon btn-edit", title="Edit Attendance") if allow_edit_delete else "",
-                    A(NotStr(delete_icon_svg), hx_post=f"/attendances/delete/{attendance_id}", hx_target=f"#attendance-row-{attendance_id}", hx_swap="outerHTML", hx_confirm="Tem certeza que deseja excluir este atendimento?", cls="btn-icon btn-delete", title="Delete Attendance") if allow_edit_delete else "",
+                    A(NotStr(delete_icon_svg), hx_post=f"/attendances/delete/{attendance_id}", hx_target=f"#attendance-row-{attendance_id}", hx_swap="outerHTML", hx_confirm="Are you sure you want to delete this attendance record?", cls="btn-icon btn-delete", title="Delete Attendance") if allow_edit_delete else "",
                     cls="actions-cell"
                 )
                 cells.append(actions)
@@ -265,10 +276,10 @@ async def attendances_list_page(request):
             .btn-delete:hover { background-color: #fee2e2; border-color: #fca5a5; transform: scale(1.1); }
 
             /* --- Estilos Status/Diagnóstico --- */
-            .status-active, .diagnosis-correct { color: #059669; font-weight: 500; background-color: #d1fae5; padding: 0.2em 0.6em; border-radius: 0.25rem; display: inline-block; }
-            .status-inactive, .diagnosis-incorrect { color: #71717a; font-weight: 500; background-color: #f4f4f5; padding: 0.2em 0.6em; border-radius: 0.25rem; display: inline-block; }
+            .diagnosis-correct { color: #059669; font-weight: 500; background-color: #d1fae5; padding: 0.2em 0.4em; border-radius: 0.25rem; font-size: 0.85em; margin-left: 0.3rem; vertical-align: middle; }
+            .diagnosis-incorrect { color: #b91c1c; font-weight: 500; background-color: #fee2e2; padding: 0.2em 0.4em; border-radius: 0.25rem; font-size: 0.85em; margin-left: 0.3rem; vertical-align: middle;}
 
-             /* --- Estilos Paginação (se usar o componente padrão) --- */
+             /* --- Estilos Paginação --- */
             .pagination { display: flex; list-style: none; padding: 0; margin: 1.5rem 0 0.5rem 0; justify-content: center; }
             .pagination li { margin: 0 0.25rem; }
             .pagination li a { display: block; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.25rem; text-decoration: none; color: #374151; background-color: white; }
@@ -278,5 +289,5 @@ async def attendances_list_page(request):
         """)
     )
 
-    # Renderiza o layout principal
-    return MainLayout(page_title, *content, active_page="attendances")
+    # *** ALTERADO: Passar user_profile para MainLayout ***
+    return MainLayout(page_title, *content, active_page="attendances", user_profile=user_profile)

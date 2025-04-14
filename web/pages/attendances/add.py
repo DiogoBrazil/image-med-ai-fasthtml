@@ -15,8 +15,10 @@ async def add_attendance_page(request):
     session = request.scope.get("session", {})
     token = session.get('token')
     user_id = session.get('user_id')
+    # *** ADICIONADO: Obter user_profile da sessão ***
     user_profile = session.get('user_profile')
-    admin_id = session.get("admin_id") # admin_id associado ao profissional
+    # Obtém admin_id associado ao profissional, se houver (pode ser None se não estiver na sessão)
+    admin_id = session.get("admin_id")
 
     # Segurança: Apenas profissionais podem adicionar atendimentos
     if not AuthService.is_professional(user_profile):
@@ -54,7 +56,9 @@ async def add_attendance_page(request):
     health_units = []
     try:
         # Idealmente, buscar apenas unidades do admin do profissional
-        health_units_result = await HealthUnitsService.get_health_units(token)
+        # Ajuste no serviço ou na API para aceitar admin_id como filtro seria o ideal
+        # Por ora, busca todas e o usuário seleciona.
+        health_units_result = await HealthUnitsService.get_health_units(token) # Passar admin_id aqui se a API suportar
         if health_units_result.get("success"):
             health_units = health_units_result.get("health_units", [])
             if not health_units and not error_message: # Não sobrescreve erro anterior
@@ -82,8 +86,10 @@ async def add_attendance_page(request):
 
         # Verifica novo upload
         if image_file and image_file.filename:
-            if image_file.content_type not in ["image/jpeg", "image/png", "image/gif"]:
-                error_message = "Invalid image type (only JPEG, PNG, GIF)."
+            # Permite mais tipos de imagem comuns
+            allowed_types = ["image/jpeg", "image/png", "image/gif", "image/bmp", "image/webp"]
+            if image_file.content_type not in allowed_types:
+                error_message = f"Invalid image type ({image_file.content_type}). Allowed: JPEG, PNG, GIF, BMP, WEBP."
             else:
                 contents = await image_file.read()
                 if contents:
@@ -122,7 +128,7 @@ async def add_attendance_page(request):
             attendance_data = {
                 "professional_id": user_id,
                 "health_unit_id": health_unit_id,
-                "admin_id": admin_id or "", # Garante que é string
+                # "admin_id" será pego pela API a partir do professional_id
                 "model_used": model_used,
                 "model_result": model_result_str, # Envia a string JSON ou o que tiver
                 "expected_result": expected_result,
@@ -149,8 +155,8 @@ async def add_attendance_page(request):
                  'expected_result': expected_result,
                  'observation': observation,
                  # Guarda novamente a imagem/nome para preview no re-render
-                 'image_base64': image_preview_b64,
-                 'image_filename': image_preview_filename,
+                 # 'image_base64': image_preview_b64, # Não precisa guardar de novo, já está em image_preview_b64
+                 # 'image_filename': image_preview_filename,
              }
 
 
@@ -170,15 +176,15 @@ async def add_attendance_page(request):
                          alt="Medical Image Preview",
                          style="max-width: 100%; max-height: 300px; display: block; margin: auto; border: 1px solid #eee;"),
                      cls="image-preview-container"),
-                 P("Uploading a new image below will replace this one.", cls="preview-note") if not request.method == "POST" else "", # Nota só no GET
+                 # Se foi erro no POST, informa que a imagem será usada
+                 P("The image above will be used. Upload a new one to replace it.", cls="preview-note") if request.method == "POST" and error_message else "",
+                 # Se veio do GET (predição), informa que será usada se não fizer upload
+                 P("This image will be used. Upload a new one below only if you want to replace it.", cls="preview-note") if request.method == "GET" and image_preview_b64 else "",
                  title="Image to be Associated"
              )
          )
 
     # Cria o formulário, passando os dados pré-preenchidos
-    # Nota: O form não lida diretamente com prefill de 'file' input nem model_result complexo,
-    # mas preenche os selects e outros campos de texto/textarea.
-    # O model_result pode ser um campo hidden ou textarea readonly no form.
     form = AttendanceForm(
         action="/attendances/add",
         models=[ # Mova para config se preferir
@@ -190,13 +196,13 @@ async def add_attendance_page(request):
         health_units=health_units,
         attendance=prefilled_data, # Passa dados preenchidos (model_used, etc)
         professional_id=user_id,
-        admin_id=admin_id # Passa admin_id para possível uso interno no form
+        admin_id=admin_id # Passa admin_id (pode ser None)
     )
 
     # Adiciona Card com o formulário
     content.append( Card(form, title="Attendance Details") )
 
-    # Adiciona CSS
+    # Adiciona CSS (mantido como antes)
     content.append(
         Style("""
             .page-header { margin-bottom: 1.5rem; }
@@ -236,6 +242,5 @@ async def add_attendance_page(request):
         """)
     )
 
-    # Renderiza o layout principal
-    # Passa 'attendances' como active_page se quiser que esse item fique ativo no menu (se visível)
+    # *** ALTERADO: Passar user_profile para MainLayout ***
     return MainLayout(page_title, *content, active_page="attendances", user_profile=user_profile)
