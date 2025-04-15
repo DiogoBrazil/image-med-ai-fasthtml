@@ -1,3 +1,4 @@
+from typing import Dict, List
 import numpy as np
 from PIL import Image, UnidentifiedImageError, ImageDraw, ImageFont
 import os
@@ -497,3 +498,20 @@ class PredictionUseCases:
                     "status_code": 500
                 }
             )
+    
+
+    def get_available_classes(self) -> Dict[str, List[str]]:
+        # Nota: Para 'respiratory', precisaríamos saber as classes exatas do YOLO.
+        # Se forem fixas, podemos adicionar aqui. Se dinâmicas, seria mais complexo.
+        # Assumindo que as classes do YOLO sejam, por exemplo, 'Pneumonia', 'Normal', 'COVID-19'
+        respiratory_classes_example = ["Pneumonia Viral", "Normal", "Covid-19", "Pneumonia Bacteriana"] 
+        tuberculosis_classes_example = ["negative", "positive"]
+        osteoporosis_classes_example = ["Normal", "Osteopenia", "Osteoporosis"]
+        breast_classes_example = ["nódulo encontrado", "nódulo não encontrado"]
+
+        return {
+            "respiratory": respiratory_classes_example,
+            "tuberculosis": tuberculosis_classes_example,
+            "osteoporosis": osteoporosis_classes_example,
+            "breast": breast_classes_example
+        }

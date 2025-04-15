@@ -58,3 +58,13 @@ async def predict_osteoporosis(request: Request, file: UploadFile = File(...)):
     Returns the predicted class and probabilities for each category.
     """
     return await prediction_controller.prediction_osteoporosis(request, file)
+
+
+@router.get("/classes", summary="Get possible classes for each prediction model")
+async def get_model_classes():
+    """
+    Returns a list of possible diagnostic results (classes) for each
+    type of prediction model available (e.g., 'respiratory', 'tuberculosis').
+    Useful for populating selection options in the UI.
+    """
+    return await prediction_controller.get_model_classes()

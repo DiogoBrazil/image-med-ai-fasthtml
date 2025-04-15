@@ -296,3 +296,25 @@ class PredictionController:
                     }
                 }
             )
+    
+    async def get_model_classes(self):
+        """
+        Retrieves the possible diagnostic classes for each model type.
+        """
+        # Não precisa de autenticação complexa aqui, é informação estática
+        logger.info("Fetching available model classes")
+        try:
+            # Chama o método síncrono do use case
+            classes = self.prediction_use_cases.get_available_classes()
+            return {
+                "detail": {
+                    "message": "Model classes retrieved successfully",
+                    "classes_by_model": classes,
+                    "status_code": 200
+                }
+            }
+        except Exception as e:
+             logger.error(f"Error fetching model classes: {e}", exc_info=True)
+             # Usar raise_http_error para consistência
+             from ..utils.error_handler import raise_http_error
+             raise_http_error(500, "Failed to retrieve model classes")
