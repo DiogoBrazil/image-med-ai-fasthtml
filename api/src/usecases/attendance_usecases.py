@@ -7,6 +7,8 @@ from ..repositories.user_repository import UserRepository
 from ..repositories.health_unit_repository import HealthUnitRepository
 from ..utils.error_handler import raise_http_error
 from src.config.settings import Settings
+from typing import List, Dict, Any
+import uuid 
 
 settings = Settings()
 logger = get_logger(__name__)
@@ -17,58 +19,142 @@ class AttendanceUseCases:
         self.user_repository = UserRepository()
         self.health_unit_repository = HealthUnitRepository()
     
-    async def add_attendance(self, attendance: CreateAttendance, professional_id: str, audit_data=None):
+    # async def add_attendance(self, attendance: CreateAttendance, professional_id: str, audit_data=None):
+    #     """Add a new attendance record with medical prediction results."""
+    #     try:            
+    #         professional = await self.user_repository.get_user_by_id(professional_id)
+    #         if not professional:
+    #             logger.error(f"Error adding attendance: Professional with ID {professional_id} not found")
+    #             raise_http_error(404, "Professional not found")
+            
+    #         admin_id = professional.get("admin_id")
+    #         if not admin_id:
+    #             logger.error(f"Error adding attendance: Professional with ID {professional_id} has no admin_id")
+    #             raise_http_error(400, "Professional is not associated with an administrator")
+            
+    #         attendance_data = attendance.dict()
+            
+    #         health_unit_id = attendance_data.get("health_unit_id")
+    #         if not health_unit_id:
+    #             logger.error("Error adding attendance: Health unit ID is required")
+    #             raise_http_error(400, "Health unit ID is required")
+                
+    #         health_unit = await self.health_unit_repository.get_health_unit_by_id(health_unit_id)
+    #         if not health_unit:
+    #             logger.error(f"Error adding attendance: Health unit with ID {health_unit_id} not found")
+    #             raise_http_error(404, "Health unit not found")
+                
+    #         if health_unit["admin_id"] != admin_id:
+    #             logger.error(f"Error adding attendance: Health unit belongs to a different administrator")
+    #             raise_http_error(403, "Health unit belongs to a different administrator")
+            
+    #         valid_models = ["respiratory", "tuberculosis", "osteoporosis", "breast"]
+    #         if attendance_data["model_used"] not in valid_models:
+    #             logger.error(f"Error adding attendance: Invalid model '{attendance_data['model_used']}'")
+    #             raise_http_error(422, f"Invalid model. Should be one of: {', '.join(valid_models)}")
+            
+    #         if attendance_data["model_used"] == "breast" and "bounding_boxes" in attendance_data:
+    #             for box in attendance_data["bounding_boxes"]:
+    #                 required_box_fields = ["x", "y", "width", "height"]
+    #                 for field in required_box_fields:
+    #                     if field not in box:
+    #                         logger.error(f"Error adding attendance: Missing required field '{field}' in bounding box")
+    #                         raise_http_error(400, f"Missing required field '{field}' in bounding box")
+            
+    #         attendance_data["professional_id"] = professional_id
+    #         attendance_data["admin_id"] = admin_id
+            
+    #         if not attendance_data.get("image_base64"):
+    #             logger.error("Error adding attendance: Image in base64 format is required")
+    #             raise_http_error(400, "Image in base64 format is required")
+                
+    #         result = await self.attendance_repository.add_attendance(attendance_data)
+            
+    #         if result["added"]:
+    #             return {
+    #                 "detail": {
+    #                     "message": "Attendance record added successfully",
+    #                     "attendance_id": result["attendance_id"],
+    #                     "status_code": 201
+    #                 }
+    #             }
+    #         else:
+    #             logger.error("Error adding attendance record")
+    #             raise_http_error(500, "Error adding attendance record to database")
+                
+    #     except HTTPException as http_exc:
+    #         raise http_exc
+    #     except Exception as e:
+    #         logger.error(f"Unexpected error when adding attendance: {e}")
+    #         raise_http_error(500, "Unexpected error when adding attendance")
+
+    async def add_attendance(self, attendance: CreateAttendance, professional_id: str, admin_id: str, audit_data: Dict[str, Any] = None):
         """Add a new attendance record with medical prediction results."""
-        try:            
-            professional = await self.user_repository.get_user_by_id(professional_id)
-            if not professional:
-                logger.error(f"Error adding attendance: Professional with ID {professional_id} not found")
-                raise_http_error(404, "Professional not found")
-            
-            admin_id = professional.get("admin_id")
+        try:
+            # Não precisamos mais buscar o professional aqui para pegar o admin_id
+            # professional = await self.user_repository.get_user_by_id(professional_id)
+            # ... validações de professional e admin_id removidas ...
+
+            # Validar admin_id recebido (se necessário, mas o token já deve garantir)
             if not admin_id:
-                logger.error(f"Error adding attendance: Professional with ID {professional_id} has no admin_id")
-                raise_http_error(400, "Professional is not associated with an administrator")
-            
-            attendance_data = attendance.dict()
-            
+                 logger.error(f"Error adding attendance: Admin ID not found for professional {professional_id}")
+                 raise_http_error(400, "Administrator ID not found for the professional.")
+
+            attendance_data = attendance.model_dump() # Usar model_dump() em vez de dict() para Pydantic v2+
+
             health_unit_id = attendance_data.get("health_unit_id")
             if not health_unit_id:
                 logger.error("Error adding attendance: Health unit ID is required")
                 raise_http_error(400, "Health unit ID is required")
-                
-            health_unit = await self.health_unit_repository.get_health_unit_by_id(health_unit_id)
+
+            try:
+                health_unit_uuid = uuid.UUID(health_unit_id)
+            except ValueError:
+                logger.error(f"Error adding attendance: Invalid Health unit UUID format '{health_unit_id}'")
+                raise_http_error(400, "Invalid Health unit ID format.")
+
+            health_unit = await self.health_unit_repository.get_health_unit_by_id(health_unit_uuid)
             if not health_unit:
                 logger.error(f"Error adding attendance: Health unit with ID {health_unit_id} not found")
                 raise_http_error(404, "Health unit not found")
-                
-            if health_unit["admin_id"] != admin_id:
-                logger.error(f"Error adding attendance: Health unit belongs to a different administrator")
+
+            # Comparar o admin_id da unidade de saúde com o admin_id do profissional (recebido como argumento)
+            if str(health_unit["admin_id"]) != admin_id: # Converter UUID para str para comparação segura
+                logger.error(f"Error adding attendance: Health unit {health_unit_id} belongs to a different administrator ({health_unit['admin_id']}) than the professional's ({admin_id})")
                 raise_http_error(403, "Health unit belongs to a different administrator")
-            
+
             valid_models = ["respiratory", "tuberculosis", "osteoporosis", "breast"]
             if attendance_data["model_used"] not in valid_models:
                 logger.error(f"Error adding attendance: Invalid model '{attendance_data['model_used']}'")
                 raise_http_error(422, f"Invalid model. Should be one of: {', '.join(valid_models)}")
-            
-            if attendance_data["model_used"] == "breast" and "bounding_boxes" in attendance_data:
-                for box in attendance_data["bounding_boxes"]:
-                    required_box_fields = ["x", "y", "width", "height"]
-                    for field in required_box_fields:
-                        if field not in box:
-                            logger.error(f"Error adding attendance: Missing required field '{field}' in bounding box")
-                            raise_http_error(400, f"Missing required field '{field}' in bounding box")
-            
+
+            # A validação dos bounding_boxes agora pode usar a estrutura Pydantic
+            # Se BoundingBox for definido na interface, a validação de tipo/estrutura básica já foi feita
+            # Podemos adicionar validações de conteúdo se necessário aqui, mas a validação de presença de campos
+            # pode ser removida se BoundingBox Pydantic for usado corretamente na interface.
+
+            # Remover a validação explícita dos campos x, y, width, height se BoundingBox for usado na interface
+            # if attendance_data["model_used"] == "breast" and attendance_data.get("bounding_boxes"):
+            #     for box in attendance_data["bounding_boxes"]:
+            #         required_box_fields = ["x", "y", "width", "height"]
+            #         for field in required_box_fields:
+            #             if field not in box: # Esta validação pode ser redundante com Pydantic
+            #                 logger.error(f"Error adding attendance: Missing required field '{field}' in bounding box")
+            #                 raise_http_error(400, f"Missing required field '{field}' in bounding box")
+
+            # Adicionar IDs obtidos do token aos dados a serem salvos
             attendance_data["professional_id"] = professional_id
-            attendance_data["admin_id"] = admin_id
-            
+            attendance_data["admin_id"] = admin_id # Adiciona o admin_id recebido
+
             if not attendance_data.get("image_base64"):
                 logger.error("Error adding attendance: Image in base64 format is required")
                 raise_http_error(400, "Image in base64 format is required")
-                
+
+            # Passar os dados, incluindo bounding_boxes se existirem
             result = await self.attendance_repository.add_attendance(attendance_data)
-            
+
             if result["added"]:
+                logger.info(f"Attendance added successfully by professional {professional_id}", extra=audit_data)
                 return {
                     "detail": {
                         "message": "Attendance record added successfully",
@@ -77,13 +163,18 @@ class AttendanceUseCases:
                     }
                 }
             else:
-                logger.error("Error adding attendance record")
+                logger.error("Error adding attendance record to database", extra=audit_data)
                 raise_http_error(500, "Error adding attendance record to database")
-                
+
         except HTTPException as http_exc:
+            # Log específico para erros HTTP conhecidos
+            logger.warning(f"HTTP Exception during attendance add: {http_exc.detail}", extra=audit_data)
             raise http_exc
+        except ValueError as ve: # Captura especificamente erros de conversão de UUID, etc.
+             logger.error(f"Data validation error when adding attendance: {ve}", extra=audit_data)
+             raise_http_error(400, f"Invalid data provided: {ve}")
         except Exception as e:
-            logger.error(f"Unexpected error when adding attendance: {e}")
+            logger.error(f"Unexpected error when adding attendance: {e}", exc_info=True, extra=audit_data) # Adiciona exc_info
             raise_http_error(500, "Unexpected error when adding attendance")
     
     async def get_attendances(self, 

@@ -13,30 +13,80 @@ class AttendanceController:
         self.attendance_use_cases = AttendanceUseCases()
         self.auth_middleware = AuthMiddleware()
     
+    # async def add_attendance(self, request: Request, attendance: CreateAttendance):
+    #     """
+    #     Adds a new attendance record with diagnosis.
+    #     Requires professional profile.
+    #     """
+    #     await self.auth_middleware.verify_request(request)
+        
+    #     audit_data = {
+    #         "user_id": request.state.user.get("user_id"),
+    #         "action": "add_attendance",
+    #         "ip_address": request.client.host
+    #     }
+    #     if request.state.user.get("profile") != "professional":
+    #         logger.warning(f"User {audit_data['user_id']} attempted to add attendance without professional privileges")
+    #         return {
+    #             "detail": {
+    #                 "message": "Only healthcare professionals can add attendances",
+    #                 "status_code": 403
+    #             }
+    #         }
+        
+    #     professional_id = request.state.user.get("user_id")
+            
+    #     return await self.attendance_use_cases.add_attendance(attendance, professional_id, audit_data)
+
+
     async def add_attendance(self, request: Request, attendance: CreateAttendance):
         """
         Adds a new attendance record with diagnosis.
         Requires professional profile.
         """
-        await self.auth_middleware.verify_request(request)
-        
+        await self.auth_middleware.verify_request(request) # Verifica API Key e Token
+
+        user_info = request.state.user # Obtém info do usuário do token decodificado
+
         audit_data = {
-            "user_id": request.state.user.get("user_id"),
+            "user_id": user_info.get("user_id"),
             "action": "add_attendance",
-            "ip_address": request.client.host
+            "ip_address": request.client.host if request.client else "N/A" # Adiciona verificação
         }
-        if request.state.user.get("profile") != "professional":
-            logger.warning(f"User {audit_data['user_id']} attempted to add attendance without professional privileges")
+
+        if user_info.get("profile") != "professional":
+            logger.warning(f"User {audit_data['user_id']} attempted to add attendance without professional privileges", extra=audit_data)
+            # Retornar uma resposta JSON padrão para erros, ou levantar HTTPException
+            # O error_handler global pode pegar HTTPException e formatar a resposta
+            # raise HTTPException(status_code=403, detail="Only healthcare professionals can add attendances")
+            # Ou retornar um dicionário, se preferir este formato
             return {
-                "detail": {
-                    "message": "Only healthcare professionals can add attendances",
-                    "status_code": 403
-                }
+                 "detail": {
+                     "message": "Only healthcare professionals can add attendances",
+                     "status_code": 403
+                 }
             }
-        
-        professional_id = request.state.user.get("user_id")
-            
-        return await self.attendance_use_cases.add_attendance(attendance, professional_id, audit_data)
+
+        professional_id = user_info.get("user_id")
+        admin_id = user_info.get("admin_id") # Obter admin_id do token
+
+        if not professional_id or not admin_id:
+             logger.error(f"Missing user_id or admin_id in token for user {professional_id}", extra=audit_data)
+             # raise HTTPException(status_code=400, detail="User information incomplete in token.")
+             return {
+                  "detail": {
+                      "message": "User information incomplete in token.",
+                      "status_code": 400
+                  }
+             }
+
+        # Passar professional_id e admin_id para o usecase
+        return await self.attendance_use_cases.add_attendance(
+            attendance=attendance,
+            professional_id=professional_id,
+            admin_id=admin_id,
+            audit_data=audit_data
+        )
 
     async def get_attendances(
         self, 
